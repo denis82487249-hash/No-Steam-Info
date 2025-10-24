@@ -17,7 +17,7 @@ bool NSI::SDK_OnLoad(char *error, size_t maxlength, bool late)
 {
 	const char *pLibSteamclientPath = NULL;
 	#if defined POSIX
-		pLibSteamclientPath = "./bin/steamclient.so";
+		pLibSteamclientPath = "./steamclient.so";
 	#elif defined WIN32_LEAN_AND_MEAN
 		pLibSteamclientPath = "./bin/steamclient.dll";
 	#endif

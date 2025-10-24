@@ -3,9 +3,7 @@ name: Build No-Steam-Info Plugin
 on:
   push:
     branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-  workflow_dispatch:  # Позволяет запускать вручную
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,45 +20,36 @@ jobs:
           build-essential \
           python3 \
           python3-pip \
+          python3-setuptools \
           cmake \
           libssl-dev \
           zlib1g-dev \
           git \
           wget
           
-    - name: Install AMBuild
-      run: pip3 install ambuild
+    - name: Install AMBuild from source
+      run: |
+        git clone https://github.com/alliedmodders/ambuild.git
+        cd ambuild
+        pip3 install --user .
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
       
     - name: Clone SourceMod SDK
       run: |
         git clone https://github.com/alliedmodders/sourcemod.git ~/sourcemod
         cd ~/sourcemod
-        git checkout --detach  # Используем стабильную версию
+        git checkout 1.11-dev  # Используем конкретную версию
         
-    - name: Configure build
+    - name: Configure and build
       run: |
         mkdir -p build
         cd build
         python3 ../configure.py --sdksourcemod=$HOME/sourcemod
-        echo "Configuration completed"
-        
-    - name: Build project
-      run: |
-        cd build
         ambuild
-        echo "Build completed successfully"
-        
-    - name: List built files
-      run: |
-        find build -name "*.so" -o -name "*.dll" -o -name "*.ext" | head -20
-        ls -la build/package/ 2>/dev/null || echo "No package directory"
         
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: no-steam-info-build
-        path: |
-          build/package/
-          build/*.so
-          build/*.ext
+        name: no-steam-info-plugin
+        path: build/
         retention-days: 30

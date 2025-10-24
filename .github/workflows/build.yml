@@ -1,55 +1,54 @@
-name: Build No-Steam-Info Plugin
+name: Build No-Steam-Info Direct
 
-on:
-  push:
-    branches: [ "master" ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Install system dependencies
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          build-essential \
-          python3 \
-          python3-pip \
-          python3-setuptools \
-          cmake \
-          libssl-dev \
-          zlib1g-dev \
-          git \
-          wget
+          g++ gcc make cmake \
+          libssl-dev zlib1g-dev git wget
           
-    - name: Install AMBuild from source
-      run: |
-        git clone https://github.com/alliedmodders/ambuild.git
-        cd ambuild
-        pip3 install --user .
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-      
-    - name: Clone SourceMod SDK
+    - name: Get SourceMod SDK
       run: |
         git clone https://github.com/alliedmodders/sourcemod.git ~/sourcemod
         cd ~/sourcemod
-        git checkout 1.11-dev  # Используем конкретную версию
+        git checkout 1.11-dev
         
-    - name: Configure and build
+    - name: Download required headers
       run: |
-        mkdir -p build
-        cd build
-        python3 ../configure.py --sdksourcemod=$HOME/sourcemod
-        ambuild
+        cd ~/sourcemod/public
+        wget -q https://raw.githubusercontent.com/alliedmodders/sourcemod/master/public/amtl/amtl.h || true
         
-    - name: Upload build artifacts
+    - name: Manual compilation
+      run: |
+        # Копируем необходимые заголовочные файлы
+        cp ~/sourcemod/public/smsdk_ext.h . || true
+        cp ~/sourcemod/public/IExtensionSys.h . || true
+        cp ~/sourcemod/public/ISourceMod.h . || true
+        
+        # Компилируем вручную
+        g++ -c -fPIC -I. -I~/sourcemod/public -I~/sourcemod/core \
+          extension.cpp -o extension.o
+        
+        # Создаем shared library
+        g++ -shared -o no_steam_info.so extension.o -lssl -lcrypto
+        
+        # Проверяем результат
+        file no_steam_info.so || echo "Binary file not created"
+        ls -la *.so || echo "No .so files found"
+        
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: no-steam-info-plugin
-        path: build/
-        retention-days: 30
+        name: manual-build
+        path: |
+          *.so
+          *.o
